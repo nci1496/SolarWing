@@ -6,23 +6,78 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1200</width>
+    <height>750</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>SolarWing - 太阳翼展开位移控制仿真系统</string>
   </property>
-  <widget class="QWidget" name="centralwidget"/>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="mainHorizontalLayout">
+    <item>
+     <widget class="QWidget" name="plotPanel">
+      <layout class="QVBoxLayout" name="plotPanelLayout">
+       <item>
+        <widget class="QGroupBox" name="forcePlotPlaceholder">
+         <property name="title">
+          <string>拉力曲线</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="errorPlotPlaceholder">
+         <property name="title">
+          <string>位移误差曲线</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="displacementPlotPlaceholder">
+         <property name="title">
+          <string>位移曲线</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QWidget" name="animationPanel">
+      <layout class="QVBoxLayout" name="animationPanelLayout">
+       <item>
+        <widget class="QGroupBox" name="animationPlaceholder">
+         <property name="title">
+          <string>太阳翼动画显示区</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>18</height>
+     <width>1200</width>
+     <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="settingsMenu">
+    <property name="title">
+     <string>设置</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="controlMenu">
+    <property name="title">
+     <string>控制</string>
+    </property>
+   </widget>
+   <addaction name="settingsMenu"/>
+   <addaction name="controlMenu"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>

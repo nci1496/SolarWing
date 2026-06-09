@@ -10,13 +10,19 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    dialogs/basicsettingsdialog.cpp \
+    dialogs/paramsettingsdialog.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    dialogs/basicsettingsdialog.h \
+    dialogs/paramsettingsdialog.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    dialogs/basicsettingsdialog.ui \
+    dialogs/paramsettingsdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
