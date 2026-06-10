@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "dialogs/basicsettingsdialog.h"
+#include "simulation/test_pid_tuning.h"
+#include "simulation/test_simulation.h"
+#include "simulation/test_simulation_diagnostics.h"
 
 #include <QAction>
 #include <QMenu>
@@ -21,6 +24,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->statusbar->showMessage(tr("系统就绪"));
     ui->mainHorizontalLayout->setStretch(0, 2);
     ui->mainHorizontalLayout->setStretch(1, 1);
+
+    Simulation::Test::runSimulationSmokeTest();
+    Simulation::Test::runPidTuningTests();
+    Simulation::Test::runQuadraticDiagnosticTest();
 
     setupMenus();
 }

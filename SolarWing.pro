@@ -12,12 +12,28 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     dialogs/basicsettingsdialog.cpp \
-    dialogs/paramsettingsdialog.cpp
+    dialogs/paramsettingsdialog.cpp \
+    simulation/simulationtypes.cpp \
+    simulation/pidcontroller.cpp \
+    simulation/solarwingmodel.cpp \
+    simulation/integrator.cpp \
+    simulation/solarwingsimulator.cpp \
+    simulation/test_simulation.cpp \
+    simulation/test_pid_tuning.cpp \
+    simulation/test_simulation_diagnostics.cpp
 
 HEADERS += \
     mainwindow.h \
     dialogs/basicsettingsdialog.h \
-    dialogs/paramsettingsdialog.h
+    dialogs/paramsettingsdialog.h \
+    simulation/simulationtypes.h \
+    simulation/pidcontroller.h \
+    simulation/solarwingmodel.h \
+    simulation/integrator.h \
+    simulation/solarwingsimulator.h \
+    simulation/test_simulation.h \
+    simulation/test_pid_tuning.h \
+    simulation/test_simulation_diagnostics.h
 
 FORMS += \
     mainwindow.ui \
