@@ -63,6 +63,7 @@ private:
     void loadSettings();
     void syncUI();
     bool validateAll();
+    bool m_syncingUi = false;
 
     Ui::ParamSettingsDialog *ui;
     SimulationParams m_params;

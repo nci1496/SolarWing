@@ -2,7 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QVector>
+
 #include "dialogs/paramsettingsdialog.h"
+#include "simulation/simulationtypes.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -13,6 +16,7 @@ QT_END_NAMESPACE
 class BasicSettingsDialog;
 class QAction;
 class QMenu;
+class PlotWidget;
 
 class MainWindow : public QMainWindow
 {
@@ -31,6 +35,13 @@ private slots:
 
 private:
     void setupMenus();
+    void setupPlotWidgets();
+    void loadSimulationPlots();
+    Simulation::SimulationParameters createDefaultPlotSimulationParameters() const;
+    Simulation::SimulationParameters simulationParametersFromDialog() const;
+    void applyBasicSettingsToSimulationParameters();
+    void syncDialogsFromCurrentParameters();
+    void refreshSimulationPlots();
 
     Ui::MainWindow *ui;
     BasicSettingsDialog *m_basicSettingsDialog;
@@ -41,6 +52,11 @@ private:
     QAction *m_startAction;
     QAction *m_pauseAction;
     QAction *m_stopAction;
+
+    PlotWidget *m_forcePlot;
+    PlotWidget *m_errorPlot;
+    PlotWidget *m_displacementPlot;
+    Simulation::SimulationParameters m_currentSimulationParameters;
 };
 
 #endif // MAINWINDOW_H

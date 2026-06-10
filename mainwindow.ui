@@ -19,24 +19,27 @@
      <widget class="QWidget" name="plotPanel">
       <layout class="QVBoxLayout" name="plotPanelLayout">
        <item>
-        <widget class="QGroupBox" name="forcePlotPlaceholder">
+        <widget class="QGroupBox" name="forcePlotGroup">
          <property name="title">
           <string>拉力曲线</string>
          </property>
+         <layout class="QVBoxLayout" name="forcePlotLayout"/>
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="errorPlotPlaceholder">
+        <widget class="QGroupBox" name="errorPlotGroup">
          <property name="title">
           <string>位移误差曲线</string>
          </property>
+         <layout class="QVBoxLayout" name="errorPlotLayout"/>
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="displacementPlotPlaceholder">
+        <widget class="QGroupBox" name="displacementPlotGroup">
          <property name="title">
           <string>位移曲线</string>
          </property>
+         <layout class="QVBoxLayout" name="displacementPlotLayout"/>
         </widget>
        </item>
       </layout>

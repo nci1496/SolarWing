@@ -93,6 +93,8 @@ ParamSettingsDialog::~ParamSettingsDialog()
 
 void ParamSettingsDialog::syncUI()
 {
+    m_syncingUi = true;
+
     ui->massSpinBox->setValue(m_params.massPerMeter);
     ui->gravitySpinBox->setValue(m_params.gravity);
     ui->hookMassSpinBox->setValue(m_params.hookMass);
@@ -116,10 +118,16 @@ void ParamSettingsDialog::syncUI()
 
     ui->simTimeSpinBox->setValue(m_params.simDuration);
     ui->simStepSpinBox->setValue(m_params.simStep);
+
+    m_syncingUi = false;
 }
 
 void ParamSettingsDialog::onParamChanged()
 {
+    if (m_syncingUi) {
+        return;
+    }
+
     // Read all params from UI
     m_params.massPerMeter = ui->massSpinBox->value();
     m_params.gravity = ui->gravitySpinBox->value();

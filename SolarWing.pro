@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui printsupport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -20,7 +20,9 @@ SOURCES += \
     simulation/solarwingsimulator.cpp \
     simulation/test_simulation.cpp \
     simulation/test_pid_tuning.cpp \
-    simulation/test_simulation_diagnostics.cpp
+    simulation/test_simulation_diagnostics.cpp \
+    widgets/plotwidget.cpp \
+    ../../QCustomPlot/qcustomplot.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -33,7 +35,9 @@ HEADERS += \
     simulation/solarwingsimulator.h \
     simulation/test_simulation.h \
     simulation/test_pid_tuning.h \
-    simulation/test_simulation_diagnostics.h
+    simulation/test_simulation_diagnostics.h \
+    widgets/plotwidget.h \
+    ../../QCustomPlot/qcustomplot.h
 
 FORMS += \
     mainwindow.ui \
