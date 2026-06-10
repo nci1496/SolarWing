@@ -42,7 +42,11 @@ SimulationSample SolarWingSimulator::step()
                                m_state,
                                tension,
                                m_parameters.timeStep);
-    m_state.displacement = qMax(0.0, m_state.displacement);
+
+    if (m_state.displacement < 0.0) {
+        m_state.displacement = 0.0;
+        m_state.velocity = qMax(0.0, m_state.velocity);
+    }
 
     m_time += m_parameters.timeStep;
     return buildSample(m_time, m_parameters.target.valueAt(m_time), tension);

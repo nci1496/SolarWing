@@ -78,13 +78,20 @@ void printConclusion(const SimulationResult &result)
     const SimulationSample &first = result.samples.first();
     const SimulationSample &last = result.samples.last();
     const bool targetMonotonic = last.targetDisplacement > first.targetDisplacement;
-    const bool actualPinnedNearZero = qAbs(last.actualDisplacement) < 1e-6;
-    const bool finalVelocityNegative = last.velocity < -1.0;
+    const bool actualPinnedAtZero = qAbs(last.actualDisplacement) < 1e-6;
+    const bool finalVelocityNegative = last.velocity < -1e-6;
+    const bool finalVelocityNearZero = qAbs(last.velocity) < 1e-6;
     const bool tensionMostlyPositive = last.tension >= 0.0;
 
-    if (targetMonotonic && actualPinnedNearZero && finalVelocityNegative && tensionMostlyPositive) {
+    if (targetMonotonic && actualPinnedAtZero && finalVelocityNegative && tensionMostlyPositive) {
         qDebug().noquote() << "[diagnostic][quadratic] conclusion=C";
         qDebug().noquote() << "  basis=target grows normally, PID output remains non-negative, but displacement is clamped at 0 while velocity stays negative; this points to boundary handling amplifying the anomaly.";
+        return;
+    }
+
+    if (targetMonotonic && tensionMostlyPositive && (!actualPinnedAtZero || finalVelocityNearZero)) {
+        qDebug().noquote() << "[diagnostic][quadratic] conclusion=resolved-C";
+        qDebug().noquote() << "  basis=target still grows normally, boundary no longer leaves a persistent negative terminal velocity, and the earlier boundary-condition symptom is no longer dominant.";
         return;
     }
 
