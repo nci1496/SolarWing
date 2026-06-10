@@ -68,12 +68,17 @@ MainWindow::MainWindow(QWidget *parent)
     , m_displacementPlot(nullptr)
     , m_animationWidget(nullptr)
     , m_currentSimulationParameters(createDefaultPlotSimulationParameters())
+    , m_playbackTimer(new QTimer(this))
+    , m_currentSampleIndex(0)
     , m_stopHookTriggered(false)
 {
     ui->setupUi(this);
     ui->statusbar->showMessage(tr("系统就绪"));
     ui->mainHorizontalLayout->setStretch(0, 2);
     ui->mainHorizontalLayout->setStretch(1, 1);
+
+    m_playbackTimer->setInterval(50);
+    connect(m_playbackTimer, &QTimer::timeout, this, &MainWindow::onPlaybackTick);
 
     setupPlotWidgets();
     refreshSimulationPlots();
@@ -122,6 +127,8 @@ void MainWindow::loadSimulationPlots()
     simulator.setParameters(m_currentSimulationParameters);
     const Simulation::SimulationResult result = simulator.run();
 
+    m_lastResult = result;
+
     if (result.isEmpty()) {
         m_forcePlot->clearSeries();
         m_errorPlot->clearSeries();
@@ -164,10 +171,12 @@ void MainWindow::loadSimulationPlots()
     displacementSeries.append({tr("实际位移"), timeValues, actualValues, QColor(46, 204, 113)});
     m_displacementPlot->setSeriesList(displacementSeries);
 
+    m_currentSampleIndex = 0;
     if (m_animationWidget && !result.samples.isEmpty()) {
+        const Simulation::SimulationSample &firstSample = result.samples.constFirst();
         m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
-        m_animationWidget->setActualDisplacement(result.samples.constLast().actualDisplacement);
-        m_animationWidget->setTargetDisplacement(result.samples.constLast().targetDisplacement);
+        m_animationWidget->setActualDisplacement(firstSample.actualDisplacement);
+        m_animationWidget->setTargetDisplacement(firstSample.targetDisplacement);
 
         if (m_animationWidget->isLimitExceeded()) {
             m_stopHookTriggered = true;
@@ -341,17 +350,29 @@ void MainWindow::onSimulationStart()
         return;
     }
 
-    ui->statusbar->showMessage(tr("仿真开始，曲线已刷新"));
+    if (m_lastResult.isEmpty()) {
+        ui->statusbar->showMessage(tr("请先执行一次仿真后再播放"));
+        return;
+    }
+
+    m_currentSampleIndex = 0;
+    int intervalMs = qMax(10, int(m_currentSimulationParameters.timeStep * 1000));
+    m_playbackTimer->setInterval(intervalMs);
+    m_playbackTimer->start();
+    ui->statusbar->showMessage(tr("播放中"));
 }
 
 void MainWindow::onSimulationPause()
 {
+    if (m_playbackTimer->isActive()) {
+        m_playbackTimer->stop();
+    }
     ui->statusbar->showMessage(tr("仿真暂停"));
 }
 
 void MainWindow::onSimulationStop()
 {
-    m_stopHookTriggered = false;
+    stopPlayback();
     ui->statusbar->showMessage(tr("仿真停止"));
 }
 
@@ -366,4 +387,41 @@ void MainWindow::onAnimationStopRequested()
                          tr("上限报警"),
                          tr("太阳翼位置已达到设置的最高值，仿真已停止。"));
     onSimulationStop();
+}
+
+void MainWindow::onPlaybackTick()
+{
+    if (m_currentSampleIndex >= m_lastResult.samples.size()) {
+        stopPlayback();
+        ui->statusbar->showMessage(tr("播放完成"));
+        return;
+    }
+
+    advanceToSample(m_currentSampleIndex);
+
+    if (m_animationWidget && m_animationWidget->isLimitExceeded()) {
+        stopPlayback();
+        onAnimationStopRequested();
+        return;
+    }
+
+    ++m_currentSampleIndex;
+}
+
+void MainWindow::advanceToSample(int index)
+{
+    if (!m_animationWidget || index < 0 || index >= m_lastResult.samples.size()) {
+        return;
+    }
+
+    const Simulation::SimulationSample &sample = m_lastResult.samples.at(index);
+    m_animationWidget->setActualDisplacement(sample.actualDisplacement);
+    m_animationWidget->setTargetDisplacement(sample.targetDisplacement);
+}
+
+void MainWindow::stopPlayback()
+{
+    m_playbackTimer->stop();
+    m_currentSampleIndex = 0;
+    m_stopHookTriggered = false;
 }

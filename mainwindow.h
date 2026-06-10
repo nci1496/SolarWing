@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 #include <QVector>
 
 #include "dialogs/paramsettingsdialog.h"
@@ -34,6 +35,7 @@ private slots:
     void onSimulationPause();
     void onSimulationStop();
     void onAnimationStopRequested();
+    void onPlaybackTick();
 
 private:
     void setupMenus();
@@ -45,6 +47,8 @@ private:
     void syncDialogsFromCurrentParameters();
     void refreshSimulationPlots();
     double currentDisplacementUpperLimit() const;
+    void advanceToSample(int index);
+    void stopPlayback();
 
     Ui::MainWindow *ui;
     BasicSettingsDialog *m_basicSettingsDialog;
@@ -61,6 +65,9 @@ private:
     PlotWidget *m_displacementPlot;
     AnimationWidget *m_animationWidget;
     Simulation::SimulationParameters m_currentSimulationParameters;
+    Simulation::SimulationResult m_lastResult;
+    QTimer *m_playbackTimer;
+    int m_currentSampleIndex;
     bool m_stopHookTriggered;
 };
 
