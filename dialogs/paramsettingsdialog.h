@@ -3,6 +3,8 @@
 
 #include <QDialog>
 
+class QSettings;
+
 namespace Ui {
 class ParamSettingsDialog;
 }
@@ -43,6 +45,9 @@ public:
 
     enum SimState { Stopped, Running, Paused };
     SimState simState() const { return m_simState; }
+
+    void loadFromSettings(QSettings &settings);
+    void saveToSettings(QSettings &settings) const;
 
 signals:
     void paramsChanged();

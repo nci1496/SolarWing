@@ -35,21 +35,21 @@ ParamSettingsDialog::ParamSettingsDialog(QWidget *parent)
 
     // Bind slider to spinbox for Kp, Ki, Kd
     connect(ui->kpSlider, &QSlider::valueChanged, this, [this](int val) {
-        ui->kpSpinBox->setValue(val / 100.0);
+        ui->kpSpinBox->setValue(val / 10.0);
     });
     connect(ui->kiSlider, &QSlider::valueChanged, this, [this](int val) {
-        ui->kiSpinBox->setValue(val / 100.0);
+        ui->kiSpinBox->setValue(val / 10.0);
     });
     connect(ui->kdSlider, &QSlider::valueChanged, this, [this](int val) {
-        ui->kdSpinBox->setValue(val / 100.0);
+        ui->kdSpinBox->setValue(val / 10.0);
     });
 
     connect(ui->kpSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, [this](double val) { ui->kpSlider->setValue(int(val * 100)); });
+            this, [this](double val) { ui->kpSlider->setValue(qBound(0, int(val * 10), 1000)); });
     connect(ui->kiSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, [this](double val) { ui->kiSlider->setValue(int(val * 100)); });
+            this, [this](double val) { ui->kiSlider->setValue(qBound(0, int(val * 10), 1000)); });
     connect(ui->kdSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, [this](double val) { ui->kdSlider->setValue(int(val * 100)); });
+            this, [this](double val) { ui->kdSlider->setValue(qBound(0, int(val * 10), 1000)); });
 
     // Sync target type radio buttons
     connect(ui->constantTargetRadio, &QRadioButton::toggled, this, [this](bool checked) {
@@ -105,9 +105,9 @@ void ParamSettingsDialog::syncUI()
     ui->kpSpinBox->setValue(m_params.kp);
     ui->kiSpinBox->setValue(m_params.ki);
     ui->kdSpinBox->setValue(m_params.kd);
-    ui->kpSlider->setValue(int(m_params.kp * 100));
-    ui->kiSlider->setValue(int(m_params.ki * 100));
-    ui->kdSlider->setValue(int(m_params.kd * 100));
+    ui->kpSlider->setValue(int(m_params.kp * 10));
+    ui->kiSlider->setValue(int(m_params.ki * 10));
+    ui->kdSlider->setValue(int(m_params.kd * 10));
 
     if (m_params.targetType == SimulationParams::TargetConstant) {
         ui->constantTargetRadio->setChecked(true);
@@ -201,6 +201,11 @@ bool ParamSettingsDialog::validateAll()
 void ParamSettingsDialog::loadSettings()
 {
     QSettings settings("SolarWing", "ParamSettings");
+    loadFromSettings(settings);
+}
+
+void ParamSettingsDialog::loadFromSettings(QSettings &settings)
+{
     settings.beginGroup("dynamics");
     m_params.massPerMeter = settings.value("massPerMeter", 2.0).toDouble();
     m_params.gravity = settings.value("gravity", 9.8).toDouble();
@@ -215,7 +220,7 @@ void ParamSettingsDialog::loadSettings()
     settings.endGroup();
 
     settings.beginGroup("target");
-    m_params.targetType = (SimulationParams::TargetType)settings.value("targetType", 0).toInt();
+    m_params.targetType = static_cast<SimulationParams::TargetType>(settings.value("targetType", 0).toInt());
     m_params.targetConstant = settings.value("targetConstant", 1.0).toDouble();
     m_params.quadCoefA = settings.value("quadCoefA", 0.02).toDouble();
     m_params.quadCoefB = settings.value("quadCoefB", 0.03).toDouble();
@@ -226,38 +231,44 @@ void ParamSettingsDialog::loadSettings()
     m_params.simStep = settings.value("simStep", 0.01).toDouble();
     m_params.maxDisplacement = settings.value("maxDisplacement", 1.5).toDouble();
     settings.endGroup();
+
+    syncUI();
+}
+
+void ParamSettingsDialog::saveToSettings(QSettings &settings) const
+{
+    settings.beginGroup("dynamics");
+    settings.setValue("massPerMeter", m_params.massPerMeter);
+    settings.setValue("gravity", m_params.gravity);
+    settings.setValue("hookMass", m_params.hookMass);
+    settings.setValue("cableAngle", m_params.cableAngle);
+    settings.endGroup();
+
+    settings.beginGroup("pid");
+    settings.setValue("kp", m_params.kp);
+    settings.setValue("ki", m_params.ki);
+    settings.setValue("kd", m_params.kd);
+    settings.endGroup();
+
+    settings.beginGroup("target");
+    settings.setValue("targetType", static_cast<int>(m_params.targetType));
+    settings.setValue("targetConstant", m_params.targetConstant);
+    settings.setValue("quadCoefA", m_params.quadCoefA);
+    settings.setValue("quadCoefB", m_params.quadCoefB);
+    settings.endGroup();
+
+    settings.beginGroup("sim");
+    settings.setValue("simDuration", m_params.simDuration);
+    settings.setValue("simStep", m_params.simStep);
+    settings.setValue("maxDisplacement", m_params.maxDisplacement);
+    settings.endGroup();
 }
 
 void ParamSettingsDialog::done(int r)
 {
     if (r == Accepted) {
         QSettings settings("SolarWing", "ParamSettings");
-        settings.beginGroup("dynamics");
-        settings.setValue("massPerMeter", m_params.massPerMeter);
-        settings.setValue("gravity", m_params.gravity);
-        settings.setValue("hookMass", m_params.hookMass);
-        settings.setValue("cableAngle", m_params.cableAngle);
-        settings.endGroup();
-
-        settings.beginGroup("pid");
-        settings.setValue("kp", m_params.kp);
-        settings.setValue("ki", m_params.ki);
-        settings.setValue("kd", m_params.kd);
-        settings.endGroup();
-
-        settings.beginGroup("target");
-        settings.setValue("targetType", (int)m_params.targetType);
-        settings.setValue("targetConstant", m_params.targetConstant);
-        settings.setValue("quadCoefA", m_params.quadCoefA);
-        settings.setValue("quadCoefB", m_params.quadCoefB);
-        settings.endGroup();
-
-        settings.beginGroup("sim");
-        settings.setValue("simDuration", m_params.simDuration);
-        settings.setValue("simStep", m_params.simStep);
-        settings.setValue("maxDisplacement", m_params.maxDisplacement);
-        settings.endGroup();
-
+        saveToSettings(settings);
         emit paramsChanged();
     }
     QDialog::done(r);

@@ -19,6 +19,7 @@ class BasicSettingsDialog;
 class QAction;
 class QMenu;
 class PlotWidget;
+class QString;
 
 class MainWindow : public QMainWindow
 {
@@ -31,6 +32,8 @@ public:
 private slots:
     void openBasicSettings();
     void openParamSettings();
+    void saveScenarioConfig();
+    void loadScenarioConfig();
     void onSimulationStart();
     void onSimulationPause();
     void onSimulationStop();
@@ -49,6 +52,8 @@ private:
     double currentDisplacementUpperLimit() const;
     void advanceToSample(int index);
     void stopPlayback();
+    bool ensureSettingsDialogs();
+    bool loadScenarioConfigFromFile(const QString &filePath);
 
     Ui::MainWindow *ui;
     BasicSettingsDialog *m_basicSettingsDialog;
@@ -59,6 +64,8 @@ private:
     QAction *m_startAction;
     QAction *m_pauseAction;
     QAction *m_stopAction;
+    QAction *m_saveConfigAction;
+    QAction *m_loadConfigAction;
 
     PlotWidget *m_forcePlot;
     PlotWidget *m_errorPlot;

@@ -7,6 +7,8 @@
 #include <QStringList>
 #include <QPushButton>
 
+class QSettings;
+
 namespace Ui {
 class BasicSettingsDialog;
 }
@@ -35,6 +37,10 @@ public:
     void setIntegratorType(int t) { m_integratorType = t; }
 
     static QStringList integratorNames();
+
+    void loadFromSettings(QSettings &settings);
+    void saveToSettings(QSettings &settings) const;
+    void syncUiFromState();
 
 signals:
     void settingsChanged();

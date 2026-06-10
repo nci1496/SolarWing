@@ -52,6 +52,9 @@ PlotWidget::PlotWidget(const QString &title, QWidget *parent)
     , m_title(title)
     , m_xLabel(QStringLiteral("时间 (s)"))
     , m_yLabel(QStringLiteral("数值"))
+    , m_backgroundColor(defaultBackgroundColor())
+    , m_textColor(defaultAxisColor())
+    , m_displayFont(QStringLiteral("Microsoft YaHei"), 9)
     , m_plot(new QCustomPlot(this))
     , m_titleElement(nullptr)
     , m_verticalCrosshair(nullptr)
@@ -108,6 +111,24 @@ void PlotWidget::clearSeries()
     m_seriesList.clear();
     clearMarkers();
     refreshPlot();
+}
+
+void PlotWidget::setDisplayStyle(const QColor &backgroundColor,
+                                 const QColor &textColor,
+                                 const QFont &font)
+{
+    m_backgroundColor = backgroundColor;
+    m_textColor = textColor;
+    m_displayFont = font;
+    applyBaseStyle();
+    if (m_titleElement) {
+        QFont titleFont = m_displayFont;
+        titleFont.setPointSize(qMax(titleFont.pointSize() + 2, titleFont.pointSize()));
+        titleFont.setBold(true);
+        m_titleElement->setFont(titleFont);
+        m_titleElement->setTextColor(m_textColor);
+    }
+    m_plot->replot();
 }
 
 bool PlotWidget::eventFilter(QObject *watched, QEvent *event)
@@ -170,13 +191,17 @@ void PlotWidget::initializePlot()
     applyBaseStyle();
 
     m_plot->plotLayout()->insertRow(0);
-    m_titleElement = new QCPTextElement(m_plot, m_title, QFont(QStringLiteral("Microsoft YaHei"), 11, QFont::Bold));
+    QFont titleFont = m_displayFont;
+    titleFont.setPointSize(qMax(titleFont.pointSize() + 2, titleFont.pointSize()));
+    titleFont.setBold(true);
+    m_titleElement = new QCPTextElement(m_plot, m_title, titleFont);
+    m_titleElement->setTextColor(m_textColor);
     m_plot->plotLayout()->addElement(0, 0, m_titleElement);
 
     m_plot->legend->setVisible(true);
     m_plot->legend->setBrush(QColor(255, 255, 255, 220));
     m_plot->legend->setBorderPen(QPen(QColor(210, 214, 220)));
-    m_plot->legend->setFont(QFont(QStringLiteral("Microsoft YaHei"), 9));
+    m_plot->legend->setFont(m_displayFont);
 
     m_plot->xAxis->setLabel(m_xLabel);
     m_plot->yAxis->setLabel(m_yLabel);
@@ -200,20 +225,26 @@ void PlotWidget::initializePlot()
 
 void PlotWidget::applyBaseStyle()
 {
-    m_plot->setBackground(defaultBackgroundColor());
+    m_plot->setBackground(m_backgroundColor);
     m_plot->plotLayout()->setMargins(QMargins(8, 8, 8, 8));
 
-    const QPen axisPen(defaultAxisColor());
+    const QPen axisPen(m_textColor);
     m_plot->xAxis->setBasePen(axisPen);
     m_plot->yAxis->setBasePen(axisPen);
     m_plot->xAxis->setTickPen(axisPen);
     m_plot->yAxis->setTickPen(axisPen);
     m_plot->xAxis->setSubTickPen(axisPen);
     m_plot->yAxis->setSubTickPen(axisPen);
-    m_plot->xAxis->setTickLabelColor(defaultAxisColor());
-    m_plot->yAxis->setTickLabelColor(defaultAxisColor());
-    m_plot->xAxis->setLabelColor(defaultAxisColor());
-    m_plot->yAxis->setLabelColor(defaultAxisColor());
+    m_plot->xAxis->setTickLabelColor(m_textColor);
+    m_plot->yAxis->setTickLabelColor(m_textColor);
+    m_plot->xAxis->setLabelColor(m_textColor);
+    m_plot->yAxis->setLabelColor(m_textColor);
+    m_plot->xAxis->setTickLabelFont(m_displayFont);
+    m_plot->yAxis->setTickLabelFont(m_displayFont);
+    m_plot->xAxis->setLabelFont(m_displayFont);
+    m_plot->yAxis->setLabelFont(m_displayFont);
+    m_plot->legend->setFont(m_displayFont);
+    m_plot->legend->setTextColor(m_textColor);
 
     m_plot->xAxis->grid()->setVisible(true);
     m_plot->yAxis->grid()->setVisible(true);

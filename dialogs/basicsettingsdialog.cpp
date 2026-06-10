@@ -63,6 +63,17 @@ QStringList BasicSettingsDialog::integratorNames()
 void BasicSettingsDialog::loadSettings()
 {
     QSettings settings("SolarWing", "BasicSettings");
+    loadFromSettings(settings);
+}
+
+void BasicSettingsDialog::saveSettings()
+{
+    QSettings settings("SolarWing", "BasicSettings");
+    saveToSettings(settings);
+}
+
+void BasicSettingsDialog::loadFromSettings(QSettings &settings)
+{
     settings.beginGroup("colors");
     m_curveBgColor = settings.value("bgColor", QColor(Qt::white)).value<QColor>();
     m_textColor    = settings.value("textColor", QColor(Qt::black)).value<QColor>();
@@ -75,20 +86,11 @@ void BasicSettingsDialog::loadSettings()
 
     m_integratorType = settings.value("integratorType", 0).toInt();
 
-    // Sync to UI
-    ui->fontComboBox->setCurrentFont(m_font);
-    ui->fontSizeSpinBox->setValue(m_font.pointSize());
-
-    switch (m_integratorType) {
-    case 0: ui->eulerRadio->setChecked(true); break;
-    case 1: ui->rk2Radio->setChecked(true);  break;
-    case 2: ui->rk4Radio->setChecked(true);  break;
-    }
+    syncUiFromState();
 }
 
-void BasicSettingsDialog::saveSettings()
+void BasicSettingsDialog::saveToSettings(QSettings &settings) const
 {
-    QSettings settings("SolarWing", "BasicSettings");
     settings.beginGroup("colors");
     settings.setValue("bgColor", m_curveBgColor);
     settings.setValue("textColor", m_textColor);
@@ -100,6 +102,21 @@ void BasicSettingsDialog::saveSettings()
     settings.endGroup();
 
     settings.setValue("integratorType", m_integratorType);
+}
+
+void BasicSettingsDialog::syncUiFromState()
+{
+    ui->fontComboBox->setCurrentFont(m_font);
+    ui->fontSizeSpinBox->setValue(m_font.pointSize());
+
+    switch (m_integratorType) {
+    case 0: ui->eulerRadio->setChecked(true); break;
+    case 1: ui->rk2Radio->setChecked(true);  break;
+    case 2: ui->rk4Radio->setChecked(true);  break;
+    default: ui->eulerRadio->setChecked(true); break;
+    }
+
+    updateColorButtons();
 }
 
 void BasicSettingsDialog::onSelectBgColor()

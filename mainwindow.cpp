@@ -10,8 +10,11 @@
 
 #include <QAction>
 #include <QColor>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QMenu>
 #include <QMessageBox>
+#include <QSettings>
 #include <QStatusBar>
 
 namespace {
@@ -63,6 +66,8 @@ MainWindow::MainWindow(QWidget *parent)
     , m_startAction(nullptr)
     , m_pauseAction(nullptr)
     , m_stopAction(nullptr)
+    , m_saveConfigAction(nullptr)
+    , m_loadConfigAction(nullptr)
     , m_forcePlot(nullptr)
     , m_errorPlot(nullptr)
     , m_displacementPlot(nullptr)
@@ -119,6 +124,9 @@ void MainWindow::setupPlotWidgets()
 
     delete ui->animationPlaceholder;
     ui->animationPanelLayout->addWidget(m_animationWidget);
+
+    ensureSettingsDialogs();
+    applyBasicSettingsToSimulationParameters();
 }
 
 void MainWindow::loadSimulationPlots()
@@ -202,7 +210,7 @@ Simulation::SimulationParameters MainWindow::createDefaultPlotSimulationParamete
     params.model.stiffness = 2.0;
     params.maxDisplacement = 1.5;
 
-    params.pid.kp = 320.0;
+    params.pid.kp = 100.0;
     params.pid.ki = 25.0;
     params.pid.kd = 45.0;
     params.pid.outputMin = 0.0;
@@ -251,6 +259,72 @@ void MainWindow::applyBasicSettingsToSimulationParameters()
     }
 
     m_currentSimulationParameters.integrator = integratorTypeFromIndex(m_basicSettingsDialog->integratorType());
+
+    const QColor backgroundColor = m_basicSettingsDialog->curveBgColor();
+    const QColor textColor = m_basicSettingsDialog->textColor();
+    const QFont displayFont = m_basicSettingsDialog->selectedFont();
+
+    if (m_forcePlot) {
+        m_forcePlot->setDisplayStyle(backgroundColor, textColor, displayFont);
+    }
+    if (m_errorPlot) {
+        m_errorPlot->setDisplayStyle(backgroundColor, textColor, displayFont);
+    }
+    if (m_displacementPlot) {
+        m_displacementPlot->setDisplayStyle(backgroundColor, textColor, displayFont);
+    }
+}
+
+bool MainWindow::ensureSettingsDialogs()
+{
+    if (!m_basicSettingsDialog) {
+        m_basicSettingsDialog = new BasicSettingsDialog(this);
+        connect(m_basicSettingsDialog, &BasicSettingsDialog::settingsChanged, this, [this]() {
+            applyBasicSettingsToSimulationParameters();
+            refreshSimulationPlots();
+        });
+    }
+
+    if (!m_paramSettingsDialog) {
+        m_paramSettingsDialog = new ParamSettingsDialog(this);
+        m_paramSettingsDialog->setParams(dialogParamsFromSimulation(m_currentSimulationParameters));
+        connect(m_paramSettingsDialog, &ParamSettingsDialog::paramsChanged, this, [this]() {
+            m_currentSimulationParameters = simulationParametersFromDialog();
+            refreshSimulationPlots();
+        });
+        connect(m_paramSettingsDialog, &ParamSettingsDialog::startRequested,
+                this, &MainWindow::onSimulationStart);
+        connect(m_paramSettingsDialog, &ParamSettingsDialog::startRequested, this, [this]() {
+            m_currentSimulationParameters = simulationParametersFromDialog();
+            refreshSimulationPlots();
+        });
+        connect(m_paramSettingsDialog, &ParamSettingsDialog::pauseRequested,
+                this, &MainWindow::onSimulationPause);
+        connect(m_paramSettingsDialog, &ParamSettingsDialog::stopRequested,
+                this, &MainWindow::onSimulationStop);
+    }
+
+    return true;
+}
+
+bool MainWindow::loadScenarioConfigFromFile(const QString &filePath)
+{
+    if (!ensureSettingsDialogs()) {
+        return false;
+    }
+
+    QSettings settings(filePath, QSettings::IniFormat);
+    m_basicSettingsDialog->loadFromSettings(settings);
+    m_paramSettingsDialog->loadFromSettings(settings);
+
+    m_currentSimulationParameters = simulationParametersFromDialog();
+    applyBasicSettingsToSimulationParameters();
+    syncDialogsFromCurrentParameters();
+    refreshSimulationPlots();
+    stopPlayback();
+
+    ui->statusbar->showMessage(tr("配置已加载：%1").arg(filePath), 5000);
+    return true;
 }
 
 void MainWindow::syncDialogsFromCurrentParameters()
@@ -284,6 +358,12 @@ void MainWindow::setupMenus()
     m_paramSettingsAction->setShortcut(QKeySequence(tr("Ctrl+Alt+P")));
     connect(m_paramSettingsAction, &QAction::triggered, this, &MainWindow::openParamSettings);
 
+    m_saveConfigAction = new QAction(tr("保存配置"), this);
+    connect(m_saveConfigAction, &QAction::triggered, this, &MainWindow::saveScenarioConfig);
+
+    m_loadConfigAction = new QAction(tr("打开配置"), this);
+    connect(m_loadConfigAction, &QAction::triggered, this, &MainWindow::loadScenarioConfig);
+
     m_startAction = new QAction(tr("开始"), this);
     m_startAction->setShortcut(QKeySequence(tr("Alt+S")));
     connect(m_startAction, &QAction::triggered, this, &MainWindow::onSimulationStart);
@@ -298,6 +378,9 @@ void MainWindow::setupMenus()
 
     ui->settingsMenu->addAction(m_basicSettingsAction);
     ui->settingsMenu->addAction(m_paramSettingsAction);
+    ui->settingsMenu->addSeparator();
+    ui->settingsMenu->addAction(m_saveConfigAction);
+    ui->settingsMenu->addAction(m_loadConfigAction);
     ui->controlMenu->addAction(m_startAction);
     ui->controlMenu->addAction(m_pauseAction);
     ui->controlMenu->addAction(m_stopAction);
@@ -319,28 +402,62 @@ void MainWindow::openBasicSettings()
 
 void MainWindow::openParamSettings()
 {
-    if (!m_paramSettingsDialog) {
-        m_paramSettingsDialog = new ParamSettingsDialog(this);
-        m_paramSettingsDialog->setParams(dialogParamsFromSimulation(m_currentSimulationParameters));
-        connect(m_paramSettingsDialog, &ParamSettingsDialog::paramsChanged, this, [this]() {
-            m_currentSimulationParameters = simulationParametersFromDialog();
-            refreshSimulationPlots();
-        });
-        connect(m_paramSettingsDialog, &ParamSettingsDialog::startRequested,
-                this, &MainWindow::onSimulationStart);
-        connect(m_paramSettingsDialog, &ParamSettingsDialog::startRequested, this, [this]() {
-            m_currentSimulationParameters = simulationParametersFromDialog();
-            refreshSimulationPlots();
-        });
-        connect(m_paramSettingsDialog, &ParamSettingsDialog::pauseRequested,
-                this, &MainWindow::onSimulationPause);
-        connect(m_paramSettingsDialog, &ParamSettingsDialog::stopRequested,
-                this, &MainWindow::onSimulationStop);
+    if (!ensureSettingsDialogs()) {
+        return;
     }
+
     syncDialogsFromCurrentParameters();
     m_paramSettingsDialog->show();
     m_paramSettingsDialog->raise();
     m_paramSettingsDialog->activateWindow();
+}
+
+void MainWindow::saveScenarioConfig()
+{
+    if (!ensureSettingsDialogs()) {
+        return;
+    }
+
+    if (m_paramSettingsDialog) {
+        m_currentSimulationParameters = simulationParametersFromDialog();
+    }
+    applyBasicSettingsToSimulationParameters();
+
+    const QString filePath = QFileDialog::getSaveFileName(
+        this,
+        tr("保存实验配置"),
+        tr("StepTest.ini"),
+        tr("INI 配置文件 (*.ini)"));
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    QSettings settings(filePath, QSettings::IniFormat);
+    settings.clear();
+    settings.beginGroup("scenario");
+    settings.setValue("formatVersion", 1);
+    settings.setValue("name", QFileInfo(filePath).completeBaseName());
+    settings.endGroup();
+
+    m_basicSettingsDialog->saveToSettings(settings);
+    m_paramSettingsDialog->saveToSettings(settings);
+    settings.sync();
+
+    ui->statusbar->showMessage(tr("配置已保存：%1").arg(filePath), 5000);
+}
+
+void MainWindow::loadScenarioConfig()
+{
+    const QString filePath = QFileDialog::getOpenFileName(
+        this,
+        tr("打开实验配置"),
+        QString(),
+        tr("INI 配置文件 (*.ini)"));
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    loadScenarioConfigFromFile(filePath);
 }
 
 void MainWindow::onSimulationStart()

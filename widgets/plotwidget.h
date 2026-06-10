@@ -5,6 +5,9 @@
 #include <QVector>
 #include <QWidget>
 
+class QColor;
+class QFont;
+
 class QCPGraph;
 class QCPItemLine;
 class QCPItemText;
@@ -35,6 +38,9 @@ public:
                          const QColor &color = QColor(64, 114, 203));
     void setSeriesList(const QVector<SeriesData> &seriesList);
     void clearSeries();
+    void setDisplayStyle(const QColor &backgroundColor,
+                         const QColor &textColor,
+                         const QFont &font);
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -65,6 +71,9 @@ private:
     QVector<MarkerItems> m_markers;
     QPoint m_lastLeftPressPosition;
     bool m_dragging = false;
+    QColor m_backgroundColor;
+    QColor m_textColor;
+    QFont m_displayFont;
     QCustomPlot *m_plot;
     QCPTextElement *m_titleElement;
     QCPItemLine *m_verticalCrosshair;
