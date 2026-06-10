@@ -20,6 +20,8 @@ QString SimulationParams::validate() const
         return QString("二次系数 A 应在 0.015~0.025 范围内，当前值: %1").arg(quadCoefA);
     if (quadCoefB < 0.02 || quadCoefB > 0.04)
         return QString("一次系数 B 应在 0.02~0.04 范围内，当前值: %1").arg(quadCoefB);
+    if (maxDisplacement <= 0.0)
+        return QString("最高位移应大于 0，当前值: %1").arg(maxDisplacement);
     return QString();
 }
 
@@ -62,7 +64,7 @@ ParamSettingsDialog::ParamSettingsDialog(QWidget *parent)
         ui->massSpinBox, ui->gravitySpinBox, ui->hookMassSpinBox, ui->cableAngleSpinBox,
         ui->kpSpinBox, ui->kiSpinBox, ui->kdSpinBox,
         ui->constantTargetSpinBox, ui->coefASpinBox, ui->coefBSpinBox,
-        ui->simTimeSpinBox, ui->simStepSpinBox
+        ui->simTimeSpinBox, ui->simStepSpinBox, ui->maxDisplacementSpinBox
     };
     for (QDoubleSpinBox *spinBox : paramSpinBoxes) {
         connect(spinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
@@ -118,6 +120,7 @@ void ParamSettingsDialog::syncUI()
 
     ui->simTimeSpinBox->setValue(m_params.simDuration);
     ui->simStepSpinBox->setValue(m_params.simStep);
+    ui->maxDisplacementSpinBox->setValue(m_params.maxDisplacement);
 
     m_syncingUi = false;
 }
@@ -144,6 +147,7 @@ void ParamSettingsDialog::onParamChanged()
 
     m_params.simDuration = ui->simTimeSpinBox->value();
     m_params.simStep = ui->simStepSpinBox->value();
+    m_params.maxDisplacement = ui->maxDisplacementSpinBox->value();
 
     emit paramsChanged();
 }
@@ -220,6 +224,7 @@ void ParamSettingsDialog::loadSettings()
     settings.beginGroup("sim");
     m_params.simDuration = settings.value("simDuration", 10.0).toDouble();
     m_params.simStep = settings.value("simStep", 0.01).toDouble();
+    m_params.maxDisplacement = settings.value("maxDisplacement", 1.5).toDouble();
     settings.endGroup();
 }
 
@@ -250,6 +255,7 @@ void ParamSettingsDialog::done(int r)
         settings.beginGroup("sim");
         settings.setValue("simDuration", m_params.simDuration);
         settings.setValue("simStep", m_params.simStep);
+        settings.setValue("maxDisplacement", m_params.maxDisplacement);
         settings.endGroup();
 
         emit paramsChanged();

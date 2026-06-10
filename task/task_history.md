@@ -93,41 +93,45 @@
 
 ### Phase 5：动画系统
 **目标**
-- 实现太阳翼展开动画
-- 显示参考位置与实际位置
-- 达到最高位置时报警并停止仿真
+- 先建立右侧动画区的可视化骨架
+- 再逐步接入实际位移与目标位移
+- 最后补齐上限报警与停止钩子
 
 **包含功能**
-- 太阳翼位图
-- 卷扬机构椭圆
-- 钢丝绳连线
-- 当前位置与目标位置文本显示
-- 上限报警逻辑
+- `AnimationWidget` 静态绘制卷扬机、钢丝绳、太阳翼
+- 接入 `actualDisplacement` 驱动太阳翼高度变化
+- 接入 `targetDisplacement` 显示目标位置参考线
+- 同屏区分实际位置与目标位置
+- 上限报警逻辑与停止接口预留
 
 **验收标准**
-- 动画能随仿真数据变化
-- 可区分实际位移与目标位移
-- 报警触发后停止仿真
+- 打开程序即可看到静态太阳翼示意图
+- 参数变化并重新仿真后，动画区位置可随实际位移更新
+- 可明显区分目标位置与实际位置
+- 达到上限条件时可触发报警并停止后续播放
 
 ---
 
-### Phase 6：控制与交互
+### Phase 6：播放控制与交互
 **目标**
-- 完成菜单、快捷键、右键菜单
-- 完成开始 / 暂停 / 停止控制逻辑
-- 使用 `QTimer` 驱动仿真刷新
+- 使用 `QTimer` 按样本序列驱动逐步播放
+- 在已有播放态基础上完成开始 / 暂停 / 停止
+- 保持菜单、快捷键、右键菜单与播放状态一致
 
 **包含功能**
+- 基于 `SimulationResult.samples` 的播放索引推进
+- `QTimer` 按固定间隔读取 `sample[i]`
+- 开始 / 暂停 / 停止状态流转
 - “设置”菜单
 - “控制”菜单
 - 快捷键：`Ctrl+Alt+F`、`Ctrl+Alt+P`、`Alt+S`、`Alt+P`、`Alt+T`
 - 右键弹出控制快捷菜单
-- 仿真运行状态管理
 
 **验收标准**
-- 菜单与快捷键可正常使用
-- 开始 / 暂停 / 停止逻辑正确
-- `QTimer` 被正确用于刷新仿真过程
+- 右侧动画可按样本序列连续播放
+- 开始、暂停、停止真正作用于播放过程而非仅提示文本
+- 菜单、快捷键、右键菜单可正常驱动播放控制
+- `QTimer` 被正确用于刷新仿真播放过程
 
 ---
 
@@ -153,7 +157,14 @@
 3. Phase 3：仿真核心
 4. Phase 4：曲线可视化
 5. Phase 5：动画系统
-6. Phase 6：控制与交互
+   - 子任务 1：`AnimationWidget` 静态绘制（卷扬机 + 钢丝绳 + 太阳翼）
+   - 子任务 2：接入 `actualDisplacement`，太阳翼高度随仿真结果变化
+   - 子任务 3：接入 `targetDisplacement`，同屏区分目标位置与实际位置
+   - 子任务 4：上限报警与停止钩子
+6. Phase 6：播放控制与交互
+   - 子任务 1：`QTimer` 样本序列播放骨架
+   - 子任务 2：开始 / 暂停 / 停止状态流转
+   - 子任务 3：菜单 / 快捷键 / 右键菜单联动
 7. Phase 7：参数保存读取与验收
 
 ## 5. 单次协作规则
@@ -179,3 +190,8 @@
 - 2026-06-10：Phase 4 曲线鼠标交互基础能力。`PlotWidget` 内部新增统一鼠标事件处理：悬停显示十字光标与十字参考线，左键单击时按当前图表数据坐标记录并显示标记点与坐标标签，左键双击时仅清除当前图中的所有标记点；交互逻辑未外溢到主窗口，三幅图共用同一套实现。涉及文件：`widgets/plotwidget.h`、`widgets/plotwidget.cpp`、`task/current_task.md`、`task/task_history.md`。
 - 2026-06-10：Phase 4 图表浏览体验增强。为 `PlotWidget` 启用 `QCustomPlot` 的滚轮缩放与拖拽平移能力，作用范围限定在当前图表内部；同时将坐标标记触发时机调整为“左键释放且未发生拖拽”时添加，避免与平移操作冲突，并保持十字光标、单击标点、双击清空功能继续可用。涉及文件：`widgets/plotwidget.h`、`widgets/plotwidget.cpp`、`task/current_task.md`、`task/task_history.md`。
 - 2026-06-10：Phase 4 参数驱动图表重绘。主窗口新增统一的当前仿真参数状态，图表绘制不再依赖初始化时的硬编码默认值；“基本设置/参数设置”修改后会同步回主窗口并重新执行一次 `SolarWingSimulator` 仿真，再将最新结果刷新到拉力、误差与位移三张图，同时保留现有缩放、拖拽与坐标交互。顺手为 `ParamSettingsDialog` 增加 UI 同步保护，避免打开对话框时因控件回写触发无意义重复刷新。涉及文件：`mainwindow.h`、`mainwindow.cpp`、`dialogs/paramsettingsdialog.h`、`dialogs/paramsettingsdialog.cpp`、`task/current_task.md`、`task/task_history.md`。
+- 2026-06-10：Phase 5 动画骨架静态绘制。新增 `widgets/animationwidget.*` 自绘控件，在右侧动画区域替换原有空白占位，静态绘制卷扬机、钢丝绳与太阳翼示意图；本轮不接入仿真数据、不引入 `QTimer`，仅完成右侧动画区可见化，为后续位移联动与播放控制打底。涉及文件：`SolarWing.pro`、`mainwindow.h`、`mainwindow.cpp`、`widgets/animationwidget.h`、`widgets/animationwidget.cpp`、`task/current_task.md`、`task/task_history.md`。
+- 2026-06-10：Phase 5 接入 actualDisplacement。为 `AnimationWidget` 增加 `setActualDisplacement(double)` 接口和内部位移状态，在绘制时根据实际位移映射太阳翼垂直位置并同步调整钢丝绳长度；主窗口在每次仿真刷新曲线后，取结果末样本的 `actualDisplacement` 更新右侧静态动画，空结果时回退到 0 位移。当前仍不引入 `QTimer`，仅实现“重算一次、静态更新一次”的结果展示。涉及文件：`mainwindow.cpp`、`widgets/animationwidget.h`、`widgets/animationwidget.cpp`、`task/current_task.md`、`task/task_history.md`。
+- 2026-06-10：Phase 5 接入 targetDisplacement 参考线。为 `AnimationWidget` 增加 `setTargetDisplacement(double)` 接口和目标位移状态，抽离统一的位移到高度映射逻辑，并在右侧动画区绘制红色虚线“目标位置”参考线；主窗口在每次仿真刷新曲线后，同步将末样本的 `targetDisplacement` 传入动画区，空结果时与实际位移一起复位。当前右侧可同屏区分绿色太阳翼实际位置与红色目标位置参考，仍保持静态结果展示。涉及文件：`mainwindow.cpp`、`widgets/animationwidget.h`、`widgets/animationwidget.cpp`、`task/current_task.md`、`task/task_history.md`。
+- 2026-06-10：Phase 5 上限报警与停止钩子。为 `AnimationWidget` 增加位移上限阈值、超限状态查询和 `stopRequested()` 信号，右侧动画区新增“上限位置”参考线、超限红色高亮和底部报警提示；主窗口新增可复用的停止钩子状态 `m_stopHookTriggered`，根据当前目标参数计算上限并同步给动画控件，在超限时通过状态栏提示“已触发停止钩子”，同时阻止继续开始播放。当前实现仍不引入 `QTimer`，但已为 Phase 6 的样本播放控制预留可直接复用的停止接口。涉及文件：`mainwindow.h`、`mainwindow.cpp`、`widgets/animationwidget.h`、`widgets/animationwidget.cpp`、`task/current_task.md`、`task/task_history.md`。
+- 2026-06-10：Phase 5 上限报警修正。依据课程要求“最高值可自定义、到达后弹出报警消息对话框并停止仿真”，将上限值从目标位移中解耦：在 `参数设置` 中新增独立的 `最高位移` 参数并持久化保存，主窗口改为使用该自定义上限驱动动画区 `Limit` 参考线；超限时弹出 `QMessageBox` 报警并调用停止逻辑，不再把 `Limit` 与 `Target` 绑定为同一位置；同时对两者标签位置做错位绘制，避免视觉重叠。涉及文件：`dialogs/paramsettingsdialog.h`、`dialogs/paramsettingsdialog.cpp`、`dialogs/paramsettingsdialog.ui`、`mainwindow.cpp`、`widgets/animationwidget.cpp`、`task/task_history.md`。

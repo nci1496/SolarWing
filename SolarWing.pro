@@ -22,6 +22,7 @@ SOURCES += \
     simulation/test_pid_tuning.cpp \
     simulation/test_simulation_diagnostics.cpp \
     widgets/plotwidget.cpp \
+    widgets/animationwidget.cpp \
     ../../QCustomPlot/qcustomplot.cpp
 
 HEADERS += \
@@ -37,6 +38,7 @@ HEADERS += \
     simulation/test_pid_tuning.h \
     simulation/test_simulation_diagnostics.h \
     widgets/plotwidget.h \
+    widgets/animationwidget.h \
     ../../QCustomPlot/qcustomplot.h
 
 FORMS += \

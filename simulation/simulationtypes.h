@@ -52,6 +52,7 @@ struct SimulationParameters {
     double timeStep = 0.01;
     double initialDisplacement = 0.0;
     double initialVelocity = 0.0;
+    double maxDisplacement = 1.5;
 };
 
 struct SimulationState {

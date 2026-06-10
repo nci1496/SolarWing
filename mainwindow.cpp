@@ -5,11 +5,13 @@
 #include "simulation/test_pid_tuning.h"
 #include "simulation/test_simulation.h"
 #include "simulation/test_simulation_diagnostics.h"
+#include "widgets/animationwidget.h"
 #include "widgets/plotwidget.h"
 
 #include <QAction>
 #include <QColor>
 #include <QMenu>
+#include <QMessageBox>
 #include <QStatusBar>
 
 namespace {
@@ -45,6 +47,7 @@ SimulationParams dialogParamsFromSimulation(const Simulation::SimulationParamete
     dialogParams.quadCoefB = params.target.quadB;
     dialogParams.simDuration = params.totalTime;
     dialogParams.simStep = params.timeStep;
+    dialogParams.maxDisplacement = params.maxDisplacement;
     return dialogParams;
 }
 
@@ -63,7 +66,9 @@ MainWindow::MainWindow(QWidget *parent)
     , m_forcePlot(nullptr)
     , m_errorPlot(nullptr)
     , m_displacementPlot(nullptr)
+    , m_animationWidget(nullptr)
     , m_currentSimulationParameters(createDefaultPlotSimulationParameters())
+    , m_stopHookTriggered(false)
 {
     ui->setupUi(this);
     ui->statusbar->showMessage(tr("系统就绪"));
@@ -98,9 +103,17 @@ void MainWindow::setupPlotWidgets()
     m_displacementPlot = new PlotWidget(tr("位移曲线"), this);
     m_displacementPlot->setAxisLabels(tr("时间 (s)"), tr("位移"));
 
+    m_animationWidget = new AnimationWidget(this);
+    m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
+    connect(m_animationWidget, &AnimationWidget::stopRequested,
+            this, &MainWindow::onAnimationStopRequested);
+
     ui->forcePlotLayout->addWidget(m_forcePlot);
     ui->errorPlotLayout->addWidget(m_errorPlot);
     ui->displacementPlotLayout->addWidget(m_displacementPlot);
+
+    delete ui->animationPlaceholder;
+    ui->animationPanelLayout->addWidget(m_animationWidget);
 }
 
 void MainWindow::loadSimulationPlots()
@@ -113,6 +126,12 @@ void MainWindow::loadSimulationPlots()
         m_forcePlot->clearSeries();
         m_errorPlot->clearSeries();
         m_displacementPlot->clearSeries();
+        if (m_animationWidget) {
+            m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
+            m_animationWidget->setActualDisplacement(0.0);
+            m_animationWidget->setTargetDisplacement(0.0);
+        }
+        m_stopHookTriggered = false;
         ui->statusbar->showMessage(tr("仿真结果为空，无法绘制曲线"));
         return;
     }
@@ -144,6 +163,19 @@ void MainWindow::loadSimulationPlots()
     displacementSeries.append({tr("参考位移"), timeValues, targetValues, QColor(52, 152, 219)});
     displacementSeries.append({tr("实际位移"), timeValues, actualValues, QColor(46, 204, 113)});
     m_displacementPlot->setSeriesList(displacementSeries);
+
+    if (m_animationWidget && !result.samples.isEmpty()) {
+        m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
+        m_animationWidget->setActualDisplacement(result.samples.constLast().actualDisplacement);
+        m_animationWidget->setTargetDisplacement(result.samples.constLast().targetDisplacement);
+
+        if (m_animationWidget->isLimitExceeded()) {
+            m_stopHookTriggered = true;
+            ui->statusbar->showMessage(tr("已达到位移上限，已触发停止钩子"));
+        } else {
+            m_stopHookTriggered = false;
+        }
+    }
 }
 
 Simulation::SimulationParameters MainWindow::createDefaultPlotSimulationParameters() const
@@ -159,6 +191,7 @@ Simulation::SimulationParameters MainWindow::createDefaultPlotSimulationParamete
     params.model.cableAngleDeg = 0.02;
     params.model.damping = 1.0;
     params.model.stiffness = 2.0;
+    params.maxDisplacement = 1.5;
 
     params.pid.kp = 320.0;
     params.pid.ki = 25.0;
@@ -198,6 +231,7 @@ Simulation::SimulationParameters MainWindow::simulationParametersFromDialog() co
 
     params.totalTime = dialogParams.simDuration;
     params.timeStep = dialogParams.simStep;
+    params.maxDisplacement = dialogParams.maxDisplacement;
     return params;
 }
 
@@ -224,6 +258,11 @@ void MainWindow::refreshSimulationPlots()
         m_currentSimulationParameters = simulationParametersFromDialog();
     }
     loadSimulationPlots();
+}
+
+double MainWindow::currentDisplacementUpperLimit() const
+{
+    return m_currentSimulationParameters.maxDisplacement;
 }
 
 void MainWindow::setupMenus()
@@ -297,6 +336,11 @@ void MainWindow::openParamSettings()
 
 void MainWindow::onSimulationStart()
 {
+    if (m_stopHookTriggered) {
+        ui->statusbar->showMessage(tr("已触发停止钩子，请先调整参数后再继续"));
+        return;
+    }
+
     ui->statusbar->showMessage(tr("仿真开始，曲线已刷新"));
 }
 
@@ -307,5 +351,19 @@ void MainWindow::onSimulationPause()
 
 void MainWindow::onSimulationStop()
 {
+    m_stopHookTriggered = false;
     ui->statusbar->showMessage(tr("仿真停止"));
+}
+
+void MainWindow::onAnimationStopRequested()
+{
+    if (m_stopHookTriggered) {
+        return;
+    }
+
+    m_stopHookTriggered = true;
+    QMessageBox::warning(this,
+                         tr("上限报警"),
+                         tr("太阳翼位置已达到设置的最高值，仿真已停止。"));
+    onSimulationStop();
 }

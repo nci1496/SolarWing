@@ -25,6 +25,7 @@ struct SimulationParams {
 
     double simDuration = 10.0;
     double simStep = 0.01;
+    double maxDisplacement = 1.5;
 
     QString validate() const;
 };
