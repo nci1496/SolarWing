@@ -39,6 +39,7 @@ private slots:
     void onSimulationStop();
     void onAnimationStopRequested();
     void onPlaybackTick();
+    void onAnimationSeekRequested(double progress);
 
 private:
     void setupMenus();
@@ -54,6 +55,7 @@ private:
     void stopPlayback();
     bool ensureSettingsDialogs();
     bool loadScenarioConfigFromFile(const QString &filePath);
+    void resetAnimationDisplay();
 
     Ui::MainWindow *ui;
     BasicSettingsDialog *m_basicSettingsDialog;

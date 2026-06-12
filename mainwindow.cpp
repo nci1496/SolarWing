@@ -117,6 +117,8 @@ void MainWindow::setupPlotWidgets()
     m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
     connect(m_animationWidget, &AnimationWidget::stopRequested,
             this, &MainWindow::onAnimationStopRequested);
+    connect(m_animationWidget, &AnimationWidget::progressSeekRequested,
+            this, &MainWindow::onAnimationSeekRequested);
 
     ui->forcePlotLayout->addWidget(m_forcePlot);
     ui->errorPlotLayout->addWidget(m_errorPlot);
@@ -141,11 +143,7 @@ void MainWindow::loadSimulationPlots()
         m_forcePlot->clearSeries();
         m_errorPlot->clearSeries();
         m_displacementPlot->clearSeries();
-        if (m_animationWidget) {
-            m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
-            m_animationWidget->setActualDisplacement(0.0);
-            m_animationWidget->setTargetDisplacement(0.0);
-        }
+        resetAnimationDisplay();
         m_stopHookTriggered = false;
         ui->statusbar->showMessage(tr("仿真结果为空，无法绘制曲线"));
         return;
@@ -181,10 +179,8 @@ void MainWindow::loadSimulationPlots()
 
     m_currentSampleIndex = 0;
     if (m_animationWidget && !result.samples.isEmpty()) {
-        const Simulation::SimulationSample &firstSample = result.samples.constFirst();
         m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
-        m_animationWidget->setActualDisplacement(firstSample.actualDisplacement);
-        m_animationWidget->setTargetDisplacement(firstSample.targetDisplacement);
+        advanceToSample(0);
 
         if (m_animationWidget->isLimitExceeded()) {
             m_stopHookTriggered = true;
@@ -472,7 +468,10 @@ void MainWindow::onSimulationStart()
         return;
     }
 
-    m_currentSampleIndex = 0;
+    if (m_currentSampleIndex >= m_lastResult.samples.size()) {
+        m_currentSampleIndex = 0;
+    }
+
     int intervalMs = qMax(10, int(m_currentSimulationParameters.timeStep * 1000));
     m_playbackTimer->setInterval(intervalMs);
     m_playbackTimer->start();
@@ -510,6 +509,9 @@ void MainWindow::onPlaybackTick()
 {
     if (m_currentSampleIndex >= m_lastResult.samples.size()) {
         stopPlayback();
+        if (!m_lastResult.isEmpty()) {
+            advanceToSample(m_lastResult.samples.size() - 1);
+        }
         ui->statusbar->showMessage(tr("播放完成"));
         return;
     }
@@ -525,6 +527,23 @@ void MainWindow::onPlaybackTick()
     ++m_currentSampleIndex;
 }
 
+void MainWindow::onAnimationSeekRequested(double progress)
+{
+    if (m_lastResult.isEmpty()) {
+        return;
+    }
+
+    if (m_playbackTimer->isActive()) {
+        m_playbackTimer->stop();
+        ui->statusbar->showMessage(tr("拖拽进度后已暂停播放"));
+    }
+
+    const int lastIndex = m_lastResult.samples.size() - 1;
+    const int seekIndex = qBound(0, qRound(progress * lastIndex), lastIndex);
+    m_currentSampleIndex = seekIndex;
+    advanceToSample(seekIndex);
+}
+
 void MainWindow::advanceToSample(int index)
 {
     if (!m_animationWidget || index < 0 || index >= m_lastResult.samples.size()) {
@@ -532,8 +551,31 @@ void MainWindow::advanceToSample(int index)
     }
 
     const Simulation::SimulationSample &sample = m_lastResult.samples.at(index);
+    m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
     m_animationWidget->setActualDisplacement(sample.actualDisplacement);
     m_animationWidget->setTargetDisplacement(sample.targetDisplacement);
+    m_animationWidget->setErrorValue(sample.error);
+    m_animationWidget->setPlaybackTime(sample.time, m_currentSimulationParameters.totalTime);
+
+    const int sampleCount = m_lastResult.samples.size();
+    const double progress = sampleCount > 1
+                                ? static_cast<double>(index) / static_cast<double>(sampleCount - 1)
+                                : 0.0;
+    m_animationWidget->setPlaybackProgress(progress);
+}
+
+void MainWindow::resetAnimationDisplay()
+{
+    if (!m_animationWidget) {
+        return;
+    }
+
+    m_animationWidget->setDisplacementUpperLimit(currentDisplacementUpperLimit());
+    m_animationWidget->setActualDisplacement(0.0);
+    m_animationWidget->setTargetDisplacement(0.0);
+    m_animationWidget->setErrorValue(0.0);
+    m_animationWidget->setPlaybackTime(0.0, m_currentSimulationParameters.totalTime);
+    m_animationWidget->setPlaybackProgress(0.0);
 }
 
 void MainWindow::stopPlayback()
