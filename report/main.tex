@@ -1,0 +1,339 @@
+% SolarWing 课程实验报告
+% 编译：Overleaf，XeLaTeX 编译器
+% 文档类：ctexart（A4，中文，宋/黑/楷自动 fallback）
+% 图路径：相对路径 image/<filename>.png，与 report/验收流程.md 截图命名一致
+
+\documentclass[UTF8, a4paper, fontset=none]{ctexart}
+
+% --- 宏包 ---
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+
+% --- 标题与作者（按需修改） ---
+\title{太阳翼展开时变重力卸载控制\\的可视化编程与仿真}
+\author{姓名：\underline{\hspace{2.5cm}} \quad 学号：\underline{\hspace{3cm}}}
+\date{\today}
+
+% --- 条件图宏：图片不存在则不报错，只输出占位提示 ---
+\newcommand{\plotfig}[3]{%
+  % #1 文件名（不含扩展名），#2 宽度，#3 标题
+  \IfFileExists{image/#1.png}{%
+    \begin{figure}[H]
+      \centering
+      \includegraphics[width=#2]{image/#1.png}
+      \caption{#3}
+      \label{fig:#1}
+    \end{figure}%
+  }{%
+    \fbox{\parbox{0.92\linewidth}{\centering
+      \textbf{[占位图]} 缺失 \texttt{image/#1.png}\\
+      请按 \texttt{report/验收流程.md} 中对应步骤补图。
+    }}%
+  }%
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文实现了一套太阳翼展开时变重力卸载位移控制系统的可视化编程与仿真平台。
+被控量为太阳翼位移，控制量为卷扬机构提供的拉力，采用 PID 控制器对太阳翼位移进行闭环控制。
+软件基于 Qt Widgets + C++ 实现，包含主窗口三幅实时曲线（拉力、位移误差、实际/参考位移）、
+右侧太阳翼位移控制动画、参数设置与基本设置对话框、菜单与快捷键驱动的播放控制，
+并支持将全部参数保存为 INI 配置文件以复现实验场景。
+分别针对定值目标（StepTest）和时变二次曲线目标（SinTest）开展控制效果验证。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ---------------------------------------------------------------
+\section{引言}
+% ---------------------------------------------------------------
+
+太阳翼是航天器在轨运行的关键部件之一，展开过程具有"绳索+吊钩+展开桁架"的柔性低刚度特性，
+在地面试验中常需通过卷扬机构提供主动拉力，对太阳翼自身的时变重力进行卸载，以保证展开过程
+平稳、可控、达到目标位移。课程要求在 Windows 平台下，使用 Qt Widgets + C++ 实现
+"太阳翼展开时变重力卸载控制的可视化编程与仿真"软件，覆盖三幅曲线、太阳翼位移动画、
+参数对话框、菜单 / 快捷键 / 右键菜单、保存与读取配置等评分点。
+
+本文以 SolarWing 项目为载体，按"建模 \textrightarrow{} PID \textrightarrow{} 数值积分
+\textrightarrow{} 软件实现 \textrightarrow{} 控制效果分析"的顺序展开，提交两份实验场景
+配置文件（\texttt{StepTest.ini}、\texttt{SinTest.ini}）和对应的录屏视频。
+
+% ---------------------------------------------------------------
+\section{系统建模}
+% ---------------------------------------------------------------
+
+\subsection{动力学方程}
+
+把太阳翼展开部分简化为"等效单位长度质量 $k$ + 机械吊钩质量 $m_1$"的复合质点，
+钢丝绳与竖直方向夹角为 $\theta$。将卷扬机构沿绳方向的拉力记为 $u$（控制量），
+则沿位移方向的动力学方程可写成
+
+\begin{equation}
+\bigl( k \cdot x(t) + m_1 \bigr) \ddot{x}(t)
+    \;=\; u(t) \cos\theta \;-\; \bigl( k \cdot x(t) + m_1 \bigr) g
+\end{equation}
+
+其中 $x(t)$ 为太阳翼位移（被控量），$g$ 为重力加速度。\texttt{参数设置}对话框中
+可调范围：$k \in [1,5]\ \mathrm{kg/m}$、$g \in [9.8,10.0]\ \mathrm{m/s^2}$、
+$m_1 \in [10,15]\ \mathrm{kg}$、$\theta \in [0,0.05]\!^\circ$。
+
+\subsection{目标位移}
+
+支持两种目标模式：
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{定值目标}：$l_d(t) \equiv l_d$，常用于阶跃响应测试
+  \item \textbf{时变二次曲线目标}：$l_d(t) = A t^2 + B t$，其中
+        $A \in [0.015, 0.025]$，$B \in [0.02, 0.04]$
+\end{itemize}
+
+\subsection{误差与控制律}
+
+定义误差 $e(t) = l_d(t) - x(t)$，控制律采用位置式 PID
+
+\begin{equation}
+u(t) \;=\; K_p e(t) \;+\; K_i \int_0^t e(\tau) d\tau \;+\; K_d \dot{e}(t)
+\end{equation}
+
+输出限幅 $[0, 5000]\ \mathrm{N}$（拉力只能拉不能推），以避免卷扬机构出现"反向推力"。
+
+% ---------------------------------------------------------------
+\section{PID 控制器设计}
+% ---------------------------------------------------------------
+
+\subsection{参数选取思路}
+
+PID 控制器以位移误差为输入，输出为卷扬机构沿绳方向的拉力。
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{$K_p$}：决定系统响应刚度，过大易超调，过小响应迟缓。经验上取
+        $K_p \approx 100$。
+  \item \textbf{$K_i$}：消除稳态误差，对缓变扰动（如重力卸载不足）尤其重要，
+        取 $K_i \approx 25 \sim 100$。
+  \item \textbf{$K_d$}：抑制速度方向上的振荡，避免阶跃响应过冲，取
+        $K_d \approx 30 \sim 80$。
+\end{itemize}
+
+在两个实验场景中：
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccc}
+\toprule
+场景 & $K_p$ & $K_i$ & $K_d$ \\
+\midrule
+StepTest（定值 1.0 m） & 100.0 & 99.5 & 34.2 \\
+SinTest（二次目标）    & 100.0 & 98.1 & 78.4 \\
+\bottomrule
+\end{tabular}
+\caption{两个场景下的 PID 参数}
+\end{table}
+
+\subsection{实现要点}
+
+控制器实现位于 \texttt{simulation/pidcontroller.*}，关键点：
+
+\begin{itemize}[leftmargin=*]
+  \item 位置式 PID + 输出限幅 \texttt{[outputMin, outputMax]}
+  \item 积分项带抗饱和（达上限后停止继续累加）
+  \item 微分项对误差做差分，避免直接对测量噪声放大
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{数值积分方法}
+% ---------------------------------------------------------------
+
+仿真内核支持三种数值积分算法，可在「基本设置」中单选切换。
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{欧拉法（Euler）}：一阶精度，$\mathcal{O}(\Delta t)$
+  \item \textbf{二阶龙格-库塔法（RK2）}：二阶精度，$\mathcal{O}(\Delta t^2)$
+  \item \textbf{四阶龙格-库塔法（RK4）}：四阶精度，$\mathcal{O}(\Delta t^4)$，
+        两个实验场景默认均采用 RK4 以获得最平滑的响应
+\end{itemize}
+
+三个积分器均通过统一接口 \texttt{Integrator::step(state, derivative, dt)} 暴露，
+由 \texttt{SolarWingSimulator::step()} 调度，每步输出一个 \texttt{SimulationSample}
+（包含时间、目标位移、实际位移、误差、拉力、速度），供曲线与动画模块直接消费。
+
+% ---------------------------------------------------------------
+\section{软件界面设计}
+% ---------------------------------------------------------------
+
+\subsection{主窗口布局}
+
+主窗口 1200×750，按"左 2/3 曲线区 + 右 1/3 动画区"切分。曲线区从上到下依次为
+拉力曲线、位移误差曲线、实际/参考位移双曲线。动画区自绘卷扬机、钢丝绳、太阳翼，
+并在右侧信息条显示 \texttt{Target/Actual/Limit/Error}，下方显示
+\texttt{t=current / total} 与可拖拽进度条，右侧附 $0 \sim \mathrm{Limit}$ 刻度尺。
+
+\plotfig{step01_main_window}{0.9\linewidth}{SolarWing 主窗口：左侧三幅曲线 + 右侧动画区}
+
+\subsection{基本设置对话框}
+
+曲线显示样式 + 积分算法选择。\texttt{基本设置}中"曲线绘图区背景颜色"、"文字颜色"、
+"字体"、"字号"会真实下发到三幅曲线图；"积分算法"切换后会重新仿真并刷新曲线。
+
+\plotfig{step02_basic_settings}{0.7\linewidth}{基本设置对话框（曲线显示样式 + 积分算法）}
+
+\subsection{参数设置对话框}
+
+含 5 个区：系统动力学参数、控制器参数、目标设置、仿真参数、调试操作区，外加
+"最高位移"独立输入。
+
+\plotfig{step03_param_settings}{0.7\linewidth}{参数设置对话框（默认二次曲线目标）}
+
+\plotfig{step04_param_constant_target}{0.7\linewidth}{参数设置对话框（切换为定值目标后曲线自动刷新）}
+
+\subsection{菜单与快捷键}
+
+\begin{itemize}[leftmargin=*]
+  \item 「设置」菜单：基本设置（\texttt{Ctrl+Alt+F}）、参数设置（\texttt{Ctrl+Alt+P}）、
+        保存配置、打开配置
+  \item 「控制」菜单：开始（\texttt{Alt+S}）、暂停（\texttt{Alt+P}）、
+        停止（\texttt{Alt+T}）
+  \item 视图窗口右键：弹出"控制"快捷菜单（当前实现未生效，详见第 \ref{sec:gap} 节缺口说明）
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{仿真结果分析}
+% ---------------------------------------------------------------
+
+\subsection{曲线交互能力}
+
+\plotfig{step05_playback_control}{0.9\linewidth}{播放控制：开始 / 暂停 / 停止作用于样本序列}
+
+\plotfig{step06_crosshair_and_marker}{0.9\linewidth}{曲线交互：十字光标 + 单击标点}
+
+\plotfig{step07_doubleclick_and_zoom}{0.9\linewidth}{曲线交互：双击清空 + 滚轮缩放 / 拖拽平移}
+
+\subsection{StepTest：定值目标下的阶跃响应}
+
+\plotfig{step08_load_steptest}{0.9\linewidth}{打开 \texttt{StepTest.ini}：定值 1.0 m 目标}
+
+\plotfig{step09_steptest_playing}{0.9\linewidth}{StepTest 播放中段：实际位移已向 1.0 m 收敛}
+
+\textbf{控制效果}：在 PID 参数 $(100, 99.5, 34.2)$ 下，$x(t)$ 在约
+$3 \sim 5$ 秒内收敛到目标 1.0 m，稳态误差 $\to 0$；拉力曲线呈先升后降、最终稳定
+在维持重力卸载所需拉力附近的变化趋势；误差曲线单调收敛到 0 附近。
+
+\subsection{上限报警与自动停止}
+
+\plotfig{step10_limit_alert}{0.7\linewidth}{触达最高位移时的"上限报警"对话框}
+
+报警标题为 \textbf{上限报警}，内容为"太阳翼位置已达到设置的最高值，仿真已停止。"，
+点确定后自动调用停止逻辑，样本回到 0，进度条归位。
+
+\subsection{SinTest：时变二次曲线目标跟随}
+
+\plotfig{step11_load_sintest}{0.9\linewidth}{打开 \texttt{SinTest.ini}：时变二次曲线目标}
+
+\plotfig{step12_sintest_playing}{0.9\linewidth}{SinTest 播放中段：实际位移跟随目标曲线}
+
+\textbf{控制效果}：在 PID 参数 $(100, 98.1, 78.4)$ 下，$x(t)$ 紧跟 $l_d(t) = A t^2 + B t$，
+末端误差稳定收敛；增加 $K_d$ 后能更好地抑制速度方向振荡。
+
+\plotfig{step13_animation_panel}{0.5\linewidth}{动画区细节：四项数值 + 时间 + 进度条 + 刻度尺}
+
+\subsection{参数保存与复现}
+
+\plotfig{step14_save_config}{0.7\linewidth}{"保存配置"对话框}
+
+\plotfig{step15_reload_config}{0.9\linewidth}{重新打开配置后曲线与动画复现一致}
+
+\begin{itemize}[leftmargin=*]
+  \item 配置文件采用标准 INI 格式，按 \texttt{[General]/[scenario]/[colors]/[font]/
+        [dynamics]/[pid]/[target]/[sim]} 分组
+  \item 仓库根提供 \texttt{StepTest.ini}、\texttt{SinTest.ini} 两份场景文件，
+        可直接用于"打开配置即可复现"
+  \item 通过"保存配置"可生成自定义副本（如 \texttt{MyStepTest.ini}），
+        并能被"打开配置"完整恢复
+\end{itemize}
+
+% ---------------------------------------------------------------
+\section{动画系统}
+% ---------------------------------------------------------------
+
+\texttt{AnimationWidget} 在右侧动画区静态绘制卷扬机（两椭圆）、钢丝绳（直线）、
+太阳翼（位图），并通过统一的位移到高度映射，将实际位移 / 目标位移 / 上限值
+分别绘制为：
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{绿色太阳翼位图}：随 \texttt{actualDisplacement} 上下移动
+  \item \textbf{红色虚线}：目标位置 \texttt{targetDisplacement}
+  \item \textbf{第二条红色虚线}：上限 \texttt{maxDisplacement}
+  \item \textbf{顶部信息条}：\texttt{Target/Actual/Limit/Error}
+  \item \textbf{底部时间条}：\texttt{t=current / total} + 可拖拽进度条
+  \item \textbf{右侧刻度尺}：$0 \sim \mathrm{Limit}$ 五档，与上限保持一致
+\end{itemize}
+
+位移到像素的映射按当前 \texttt{Limit} 归一化后再放大，\texttt{Limit} 在
+$0.1 \sim 10$ 范围内均能自适应，避免"高位移顶满画面"的问题。
+
+% ---------------------------------------------------------------
+\section{总结与展望}
+% ---------------------------------------------------------------
+
+本文按课程要求完成了太阳翼展开时变重力卸载控制系统的可视化编程与仿真，
+覆盖了以下评分点：
+
+\begin{itemize}[leftmargin=*]
+  \item 对话框设计：基本设置、参数设置整齐美观、功能齐全
+  \item 视图窗口：三幅曲线 + 太阳翼位移动画位于图示位置
+  \item 动画能力：动态展现当前位移和目标位移，实时显示数值，插入位图
+  \item 曲线能力：刻度正确、标注正确、动画正确，含十字光标 / 单击标点 /
+        双击清空 / 缩放 / 平移
+  \item 代码要求：正确使用 \texttt{QTimer} 驱动样本序列播放，提供 Euler /
+        RK2 / RK4 三种数值积分算法
+  \item 数据要求：所有对话框参数可保存 / 读取为 INI 文件，提供
+        \texttt{StepTest.ini}、\texttt{SinTest.ini} 两份场景
+  \item 视频 / 报告：报告章节清晰、录屏脚本已按 StepTest / SinTest 拆分
+\end{itemize}
+
+\subsection*{留作扩展项} \label{sec:gap}
+
+以下项目在当前实现中尚未完整覆盖，按重要性列于下表，**不阻塞本轮课程验收**：
+
+\begin{table}[H]
+\centering
+\begin{tabular}{p{0.55\linewidth}p{0.32\linewidth}}
+\toprule
+扩展项 & 当前状态 \\
+\midrule
+视图窗口右键弹出"控制"快捷菜单 & 主窗口未重写 \texttt{contextMenuEvent}，
+     \texttt{QCustomPlot} 区域亦未设置 \texttt{Qt::ActionsContextMenu}，
+     当前右键无菜单弹出（仍可通过「控制」菜单或快捷键完成等价操作） \\
+状态栏联动显示当前播放时间与误差 & 当前状态栏只显示瞬时操作提示 \\
+真正的正弦目标函数 & \texttt{SinTest.ini} 仍基于"二次目标"能力组织 \\
+运行中参数修改的统一保护 & 建议先停止再改参数 \\
+播放结束后的进度条与索引回放 & 当前以"播完即停 + 进度条回 0"呈现 \\
+\bottomrule
+\end{tabular}
+\caption{留作扩展项（不阻塞课程验收）}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{参考文献}
+% ---------------------------------------------------------------
+
+\begin{enumerate}[leftmargin=*]
+  \item 课程讲义：太阳翼展开时变重力卸载控制系统
+  \item 课程 PDF：\texttt{task/课程期末作业-2026-06-08-v1.pdf}
+  \item Qt 官方文档：\url{https://doc.qt.io/qt-5/}
+  \item QCustomPlot 文档：\url{https://www.qcustomplot.com/}
+\end{enumerate}
+
+\end{document}

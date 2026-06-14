@@ -236,3 +236,39 @@
 - 2026-06-10：构建回归修复。修正 `dialogs/paramsettingsdialog.cpp` 顶部误引入的匿名命名空间，避免将 `SimulationParams` 与 `ParamSettingsDialog` 的成员实现包进错误作用域，消除了由此引发的一串 `definition is not in namespace enclosing` 编译错误。涉及文件：`dialogs/paramsettingsdialog.cpp`、`task/task_history.md`。
 - 2026-06-10：示例场景文件补齐。已在仓库根目录新增 `StepTest.ini` 与 `SinTest.ini` 两个实验配置文件，用于支撑课程验收中的“打开配置即可复现实验场景”。其中 `StepTest.ini` 使用常量目标，适合展示阶跃响应；`SinTest.ini` 目前基于现有实现的“二次目标”模式组织，作为连续变化目标的演示配置，后续若课程必须严格要求正弦目标，再单独扩展目标函数类型。涉及文件：`StepTest.ini`、`SinTest.ini`、`task/task_history.md`、`task/current_task.md`。
 - 2026-06-10：最终联调问题整理与下一轮增强方向确认。人工复查 `StepTest.ini` / `SinTest.ini` 后，当前结论为：`StepTest` 的演示效果已较满意；`SinTest` 虽命名为正弦测试，但现阶段仍基于已有“二次目标”能力组织，且课程要求看起来也可接受二次目标，因此“真·正弦目标”暂不作为当前阻塞项。下一轮优化重点转向右侧动画区体验增强：1）在右侧显式显示 `Target=xx.xx`、`Actual=xx.xx`、`Limit=xx.xx`、`Error=xx.xx`；2）在动画区域下方显示 `t=xx.xx / xx.xx`；3）增加可拖拽播放进度条；4）修正当前位移映射按固定像素比例导致 `Limit` 在约 `3.8~10.0` 区间视觉位置不再变化的问题，改为按当前 `Limit` 自适应动画比例；5）在右侧增加 `0 ~ Limit` 的刻度尺，使动画显示量程与报警上限一致。涉及文件：`task/task_history.md`、`task/current_task.md`。
+- 2026-06-12：Phase 7 右侧动画区信息增强与比例映射修正。本轮按上一轮整理出的 5 条增强方向全部落地：1）`AnimationWidget` 顶部信息条显式显示 `Target / Actual / Limit / Error` 四项数值；2）动画区下方显式显示 `t=当前时间 / 总时长`；3）在动画区底部新增可拖拽进度条，支持点击与拖动两种方式跳转到指定样本，拖拽时若处于播放中会自动暂停再跳转；4）位移到像素的映射改为按当前 `Limit` 归一化后再放大到可绘制高度，`Limit` 从 0.1 到 10.0 范围内动画比例都能自适应，不再出现“高 `Limit` 区间视觉不变化”的问题；5）右侧新增 `0 ~ Limit` 五档刻度尺，量程上限与报警 `Limit` 保持一致。同步在主窗口播放心跳中下发 `error / time / totalTime / progress`，并在空结果时统一复位动画区所有显示字段。涉及文件：`widgets/animationwidget.h`、`widgets/animationwidget.cpp`、`mainwindow.h`、`mainwindow.cpp`、`task/current_task.md`、`task/task_history.md`。
+- 2026-06-14：进入课程验收与成果整理。完成本轮动画区增强后，用户已确认“可以开始验收”。`task/current_task.md` 已切换为“进入课程验收与成果整理”，并固定了当前验收标准与留作扩展项；`task/task_history.md` 同步追加本轮（Phase 7 右侧动画区信息增强与比例映射修正）记录。后续若验收中发现具体问题，再回到对应模块迭代。涉及文件：`task/current_task.md`、`task/task_history.md`。
+- 2026-06-14：Phase 8 课程验收与报告三件套（启动）。本轮目标是把课程验收的成果整理出来，全部产物落在 `report/` 下，不再修改任何源码 / `.pro` / `.ini`。`task_history.md` 同步追加 Phase 8 阶段定义与三件套（`验收流程.md` / `main.tex` / 录屏脚本两份）范围；本轮先交付第一部分 `report/验收流程.md`，并继续完成 `main.tex` 与两份录屏脚本。涉及文件：`task/task_history.md`。
+- 2026-06-14：Phase 8 课程验收与报告三件套（交付完成）。本轮按 Phase 8 定义的范围交付了报告三件套，均落在 `report/` 下，未修改任何源码 / `.pro` / `.ini`：(1) `report/验收流程.md`，按"核心项 + StepTest/SinTest 两场景 + 关键菜单/快捷键/曲线交互各点一次"组织，共 15~16 个截图点（落在 15~25 区间），截图命名 `step<编号>_<主题>.png` 存到 `report/image/`，与 `main.tex` 的 `\includegraphics` 引用一一对应；(2) `report/main.tex`，使用 `ctexart` 文档类，章节贴合课程评分点（项目背景 / 系统建模 / PID / 数值积分 / 界面 / 仿真结果分析 / 动画 / 参数保存与复现 / 总结与展望 / 参考文献），通过自定义 `\plotfig` 宏以 `\IfFileExists` 保护缺图，Overleaf XeLaTeX 编译可无错；(3) 两份录屏脚本 `report/video_script_StepTest.md` 与 `report/video_script_SinTest.md`，按"操作 / 等待 / 备注"格式，StepTest 重点覆盖"参数→播放→触达上限报警→保存"，SinTest 重点覆盖"二次曲线目标→跟随过程→动画区细节"。同步在验收流程与报告的"留作扩展项"小节中如实记录了"视图窗口右键控制快捷菜单当前未生效、状态栏联动未做、SinTest 仍基于二次目标组织"等缺口，并说明等价替代方案。涉及文件：`report/验收流程.md`、`report/main.tex`、`report/video_script_StepTest.md`、`report/video_script_SinTest.md`、`task/task_history.md`。
+
+### Phase 8：课程验收与报告三件套
+
+**目标**
+
+- 围绕课程验收要求完成"验收流程.md / main.tex / 录屏脚本"三件套
+- 全部产物落在 `report/` 下，不修改任何源码
+- 为 Overleaf 编译报告与现场录屏提供稳定基线
+
+**范围（已与用户对齐）**
+
+- 验收演示：核心项（参数设置 → 仿真刷新 → 播放控制 → 上限报警 → 保存/打开配置）+ StepTest / SinTest 两场景；关键菜单 / 快捷键 / 右键 / 曲线交互各点到一次
+- 截图：中等密度，核心步骤各 1 张，预计 15~25 张，存到 `report/image/`，命名约定 `step<编号>_<主题>.png`
+- 报告：`ctexart` 中文版式，章节贴合课程评分点：项目背景 / 系统建模 / PID / 数值积分 / 界面 / 仿真结果分析 / 动画 / 参数保存与复现 / 总结 / 参考文献
+- 录屏：拆 2 份脚本（StepTest + SinTest），风格为"操作步骤 + 少量备注"
+- 不修改源码 / 不改 Qt 工程：`SolarWing.pro`、`mainwindow.*`、`dialogs/*`、`simulation/*`、`widgets/*` 本阶段均不动
+- 不动既有 INI：`StepTest.ini` / `SinTest.ini` 不改，作为验收场景源
+
+**验收标准**
+
+- `report/验收流程.md` 的每一步都能在 Qt Creator 编译运行的 SolarWing 上无障碍完成
+- 截图总量落在 15~25 张区间，且与 `main.tex` 中 `\includegraphics` 引用一一对应
+- `report/main.tex` 在 Overleaf（XeLaTeX，ctex 字体）能无错编译
+- 两份录屏脚本每步操作在程序里可复现，备注只点关键坑位，不啰嗦
+
+**留作扩展项（不阻塞本阶段验收）**
+
+- 状态栏联动显示当前时间与误差
+- 真正的正弦目标类型
+- 运行中参数修改的统一保护
+- 播放结束后进度条与索引回放
+
